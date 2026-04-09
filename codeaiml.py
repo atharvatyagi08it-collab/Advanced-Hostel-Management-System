@@ -1,6 +1,7 @@
 import json
 import pandas as pd
 from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeClassifier
 
 FILE_NAME = "students.json"
 
@@ -47,20 +48,17 @@ def view_students(data):
         print("No records found.\n")
         return
 
-    print("\n--- Student List ---")
     for s in data:
         print(s)
     print()
 
-# 🔮 ML: Fee Prediction
+# 🔮 ML: Fee Prediction (Regression)
 def predict_fee(data):
     if len(data) < 2:
-        print("❌ Not enough data for prediction.\n")
+        print("❌ Not enough data.\n")
         return
 
     df = pd.DataFrame(data)
-
-    # Convert roll to numeric for ML
     df["roll"] = pd.to_numeric(df["roll"], errors='coerce')
 
     X = df[["roll"]]
@@ -69,32 +67,53 @@ def predict_fee(data):
     model = LinearRegression()
     model.fit(X, y)
 
-    new_roll = int(input("Enter roll number to predict fee: "))
-    predicted_fee = model.predict([[new_roll]])
+    new_roll = int(input("Enter roll number: "))
+    prediction = model.predict([[new_roll]])
 
-    print(f"🔮 Predicted Fee for Roll {new_roll}: {predicted_fee[0]:.2f}\n")
+    print(f"🔮 Predicted Fee: {prediction[0]:.2f}\n")
 
-# 🚨 ML: Risk Classification
-def classify_students(data):
-    if not data:
-        print("No data available.\n")
+# 🤖 REAL ML: Risk Classification
+def train_and_classify(data):
+    if len(data) < 3:
+        print("❌ Not enough data to train ML model.\n")
         return
 
+    df = pd.DataFrame(data)
     total_fee = 50000
 
-    print("\n--- Student Risk Classification ---")
-    for s in data:
-        paid = s["fee_paid"]
-        ratio = paid / total_fee
-
+    # Create labels (target)
+    def label(row):
+        ratio = row["fee_paid"] / total_fee
         if ratio < 0.5:
-            risk = "High Risk"
+            return 0   # High Risk
         elif ratio < 0.8:
+            return 1   # Medium Risk
+        else:
+            return 2   # Low Risk
+
+    df["risk"] = df.apply(label, axis=1)
+
+    # Features (input)
+    df["roll"] = pd.to_numeric(df["roll"], errors='coerce')
+    X = df[["roll", "fee_paid"]]
+    y = df["risk"]
+
+    # Train ML model
+    model = DecisionTreeClassifier()
+    model.fit(X, y)
+
+    print("\n--- ML Risk Prediction ---")
+    for i, row in df.iterrows():
+        pred = model.predict([[row["roll"], row["fee_paid"]]])[0]
+
+        if pred == 0:
+            risk = "High Risk"
+        elif pred == 1:
             risk = "Medium Risk"
         else:
             risk = "Low Risk"
 
-        print(f"{s['name']} (Roll {s['roll']}): {risk}")
+        print(f"{row['name']} (Roll {row['roll']}): {risk}")
     print()
 
 # Main menu
@@ -102,11 +121,11 @@ def main():
     data = load_data()
 
     while True:
-        print("====== SMART HOSTEL MANAGEMENT SYSTEM ======")
+        print("====== AI HOSTEL MANAGEMENT SYSTEM ======")
         print("1. Add Student")
         print("2. View Students")
         print("3. Predict Fee (ML)")
-        print("4. Classify Students (ML)")
+        print("4. ML Risk Classification")
         print("5. Exit")
 
         choice = input("Enter choice: ")
@@ -118,7 +137,7 @@ def main():
         elif choice == "3":
             predict_fee(data)
         elif choice == "4":
-            classify_students(data)
+            train_and_classify(data)
         elif choice == "5":
             print("Exiting...")
             break
